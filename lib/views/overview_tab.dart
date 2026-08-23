@@ -209,7 +209,7 @@ class _OverviewTabState extends State<OverviewTab> {
                                 if (val == 0) return const SizedBox.shrink();
                                 return Padding(
                                   padding: const EdgeInsets.only(top: 8),
-                                  child: Text('${(val/1000).toStringAsFixed(1)}s', 
+                                  child: Text('${(val/1000).round()}s', 
                                     style: TextStyle(color: RacingTheme.textPrimary, fontSize: 11)),
                                 );
                               },
@@ -371,7 +371,7 @@ class _OverviewTabState extends State<OverviewTab> {
                 const SizedBox(width: 16),
                 // Channel Selector Right Panel
                 Container(
-                  width: 180,
+                  width: 220,
                   decoration: BoxDecoration(
                     color: RacingTheme.panel,
                     border: Border.all(color: RacingTheme.border),

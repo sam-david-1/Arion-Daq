@@ -97,7 +97,7 @@ class DaqProvider extends ChangeNotifier {
 
   // AI Chat and Context
   List<ChatMessage> _chatHistory = [];
-  bool _isAiSidebarMode = true;
+  bool _isAiSidebarMode = SettingsService().isAiSidebarMode;
   double _sidebarWidth = 350.0;
   String _activeTabName = 'OVERVIEW';
   bool _isAiLoading = false;
@@ -399,12 +399,14 @@ class DaqProvider extends ChangeNotifier {
 
   void toggleAiSidebarMode() {
     _isAiSidebarMode = !_isAiSidebarMode;
+    SettingsService().setIsAiSidebarMode(_isAiSidebarMode);
     notifyListeners();
   }
   
   void setAiSidebarMode(bool isAi) {
     if (_isAiSidebarMode != isAi) {
       _isAiSidebarMode = isAi;
+      SettingsService().setIsAiSidebarMode(_isAiSidebarMode);
       notifyListeners();
     }
   }

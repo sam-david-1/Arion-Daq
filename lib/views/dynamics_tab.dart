@@ -155,20 +155,21 @@ class DynamicsTab extends StatelessWidget {
                     ],
                   ),
                 ),
-                // Bottom 70%: Charts
+                // Bottom 70%: Charts — single column, full-width
                 Expanded(
                   flex: 70,
                   child: imuCharts.isEmpty 
                     ? Center(child: Text('IMU Time Series N/A', style: Theme.of(context).textTheme.bodySmall))
-                    : GridView.builder(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 1.5,
-                          crossAxisSpacing: 8,
-                          mainAxisSpacing: 8,
-                        ),
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(4),
                         itemCount: imuCharts.length,
-                        itemBuilder: (context, index) => imuCharts[index],
+                        itemBuilder: (context, index) => SizedBox(
+                          height: 220,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: imuCharts[index],
+                          ),
+                        ),
                       ),
                 ),
               ],
@@ -247,7 +248,7 @@ class DynamicsTab extends StatelessWidget {
                           if (val == 0) return const SizedBox.shrink();
                           return Padding(
                             padding: const EdgeInsets.only(top: 8),
-                            child: Text('${(val/1000).toStringAsFixed(1)}s', 
+                            child: Text('${(val/1000).round()}s', 
                               style: TextStyle(color: RacingTheme.textPrimary, fontSize: 11)),
                           );
                         },
@@ -330,10 +331,7 @@ class DynamicsTab extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(
-            top: 12, left: 12,
-            child: Text(title, style: TextStyle(color: RacingTheme.textPrimary, fontSize: 12, fontWeight: FontWeight.bold)),
-          ),
+          // Title is now rendered by ZoomableChart header row
         ],
       ),
     );

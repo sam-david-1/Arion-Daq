@@ -57,7 +57,7 @@ class _ChannelsTabState extends State<ChannelsTab> {
                               if (val == 0) return const SizedBox.shrink();
                               return Padding(
                                 padding: const EdgeInsets.only(top: 8),
-                                child: Text('${(val/1000).toStringAsFixed(1)}s', 
+                                child: Text('${(val/1000).round()}s', 
                                   style: TextStyle(fontFamily: 'JetBrains Mono', fontSize: 12, color: RacingTheme.textPrimary)),
                               );
                             },
@@ -320,7 +320,7 @@ class _ChannelsTabState extends State<ChannelsTab> {
                               if (val == 0) return const SizedBox.shrink();
                               return Padding(
                                 padding: const EdgeInsets.only(top: 4),
-                                child: Text('${(val/1000).toStringAsFixed(1)}s', 
+                                child: Text('${(val/1000).round()}s', 
                                   style: TextStyle(fontFamily: 'JetBrains Mono', fontSize: 10, color: RacingTheme.textPrimary)),
                               );
                             },

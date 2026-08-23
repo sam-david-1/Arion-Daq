@@ -143,27 +143,27 @@ class _ZoomableChartState extends State<ZoomableChart> {
             ),
           ),
         ),
-        // Top Left Hint — positioned to avoid title overlap
+        // Header row: title + zoom hint on left, actions on right
         Positioned(
-          top: 8,
-          right: 80,
-          child: AnimatedOpacity(
-            opacity: _isHovering ? 1.0 : 0.0,
-            duration: const Duration(milliseconds: 300),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(color: RacingTheme.background.withValues(alpha: 0.85), borderRadius: BorderRadius.circular(3), border: Border.all(color: RacingTheme.border.withValues(alpha: 0.5))),
-              child: Text('Ctrl + Scroll to zoom', style: TextStyle(color: RacingTheme.textMuted, fontSize: 9)),
-            ),
-          ),
-        ),
-        
-        // Top Right Actions
-        Positioned(
-          top: 0,
-          right: 8,
+          top: 6, left: 8, right: 8,
           child: Row(
             children: [
+              Text(widget.channelName, style: TextStyle(color: RacingTheme.textPrimary, fontSize: 12, fontWeight: FontWeight.bold)),
+              const SizedBox(width: 8),
+              AnimatedOpacity(
+                opacity: _isHovering ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 300),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: RacingTheme.background.withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(3),
+                    border: Border.all(color: RacingTheme.border.withValues(alpha: 0.5)),
+                  ),
+                  child: Text('Ctrl + Scroll to zoom', style: TextStyle(color: RacingTheme.textMuted, fontSize: 9)),
+                ),
+              ),
+              const Spacer(),
               if (isZoomed)
                 InkWell(
                   onTap: () {
@@ -173,7 +173,7 @@ class _ZoomableChartState extends State<ZoomableChart> {
                     });
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     margin: const EdgeInsets.only(right: 8),
                     decoration: BoxDecoration(color: RacingTheme.panel, borderRadius: BorderRadius.circular(4), border: Border.all(color: RacingTheme.border)),
                     child: Text('⊙ RESET', style: TextStyle(color: RacingTheme.textPrimary, fontSize: 10, fontWeight: FontWeight.bold)),
@@ -182,7 +182,7 @@ class _ZoomableChartState extends State<ZoomableChart> {
               InkWell(
                 onTap: () => _askAi(context),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(color: RacingTheme.primaryAccent.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4), border: Border.all(color: RacingTheme.primaryAccent)),
                   child: Text('✦ Ask AI', style: TextStyle(color: RacingTheme.primaryAccent, fontSize: 10, fontWeight: FontWeight.bold)),
                 ),

@@ -68,6 +68,9 @@ class SettingsService {
   bool get isAiPanelCollapsed => _prefs.getBool('isAiPanelCollapsed') ?? false;
   Future<void> setIsAiPanelCollapsed(bool value) async => await _prefs.setBool('isAiPanelCollapsed', value);
 
+  bool get isAiSidebarMode => _prefs.getBool('isAiSidebarMode') ?? true;
+  Future<void> setIsAiSidebarMode(bool value) async => await _prefs.setBool('isAiSidebarMode', value);
+
   List<String> get collapsedSidebarGroups => _prefs.getStringList('collapsedSidebarGroups') ?? [];
   Future<void> toggleSidebarGroup(String group) async {
     List<String> groups = collapsedSidebarGroups;

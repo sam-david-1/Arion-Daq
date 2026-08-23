@@ -518,7 +518,7 @@ class _SessionHistoryTabState extends State<SessionHistoryTab> {
                   if (val == 0) return const SizedBox.shrink();
                   return Padding(
                     padding: const EdgeInsets.only(top: 8),
-                    child: Text('${(val/1000).toStringAsFixed(1)}s', 
+                    child: Text('${(val/1000).round()}s', 
                       style: TextStyle(color: RacingTheme.textPrimary, fontSize: 11)),
                   );
                 },

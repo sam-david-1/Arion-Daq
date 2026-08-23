@@ -273,14 +273,14 @@ class _TopBarState extends State<TopBar> {
                     labelColor: RacingTheme.primaryAccent,
                     unselectedLabelColor: RacingTheme.textMuted,
                     labelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w700,
-                      letterSpacing: 1.2,
+                      letterSpacing: 0.5,
                     ),
                     unselectedLabelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w500,
-                      letterSpacing: 0.8,
+                      letterSpacing: 0.3,
                     ),
                     overlayColor: WidgetStateProperty.resolveWith((states) {
                       if (states.contains(WidgetState.hovered)) return RacingTheme.primaryAccent.withValues(alpha: 0.06);

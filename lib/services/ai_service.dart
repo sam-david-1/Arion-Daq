@@ -28,7 +28,7 @@ class AiService {
           'content-type': 'application/json',
         },
         body: jsonEncode({
-          'model': 'llama-3.1-70b-versatile',
+          'model': 'llama-3.1-8b-instant',
           'max_tokens': 1024,
           'messages': messages,
         }),

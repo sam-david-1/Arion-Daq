@@ -1,0 +1,193 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../state/daq_provider.dart';
+import '../theme/racing_theme.dart';
+
+class ZoomableChart extends StatefulWidget {
+  final double originalMinX;
+  final double originalMaxX;
+  final String channelName;
+  final Widget Function(BuildContext context, double minX, double maxX) builder;
+
+  const ZoomableChart({
+    super.key,
+    required this.originalMinX,
+    required this.originalMaxX,
+    required this.channelName,
+    required this.builder,
+  });
+
+  @override
+  State<ZoomableChart> createState() => _ZoomableChartState();
+}
+
+class _ZoomableChartState extends State<ZoomableChart> {
+  late double _minX;
+  late double _maxX;
+  double _lastMinX = 0;
+  double _lastMaxX = 0;
+  bool _isHovering = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _minX = widget.originalMinX;
+    _maxX = widget.originalMaxX;
+  }
+
+  @override
+  void didUpdateWidget(ZoomableChart oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.originalMaxX != widget.originalMaxX || oldWidget.originalMinX != widget.originalMinX) {
+      _minX = widget.originalMinX;
+      _maxX = widget.originalMaxX;
+    }
+  }
+
+  void _askAi(BuildContext context) {
+    final provider = Provider.of<DaqProvider>(context, listen: false);
+    provider.setAiSidebarMode(true);
+    provider.askAi('Analyze the ${widget.channelName} channel specifically for this session.');
+  }
+
+  void _handlePointerSignal(PointerSignalEvent event) {
+    if (event is PointerScrollEvent) {
+      if (!HardwareKeyboard.instance.isControlPressed) {
+        return; // Let the event pass through to standard scroll views
+      }
+      GestureBinding.instance.pointerSignalResolver.register(event, (PointerSignalEvent event) {
+        if (event is PointerScrollEvent) {
+          setState(() {
+            double range = _maxX - _minX;
+            double zoomFactor = 0.10; // 10%
+            
+            // Calculate where the mouse is relative to the chart width to zoom into the mouse
+            RenderBox? box = context.findRenderObject() as RenderBox?;
+            double center = (_maxX + _minX) / 2;
+            if (box != null) {
+              double localX = event.localPosition.dx;
+              double width = box.size.width;
+              double percentX = localX / width;
+              // Ensure percent is within reasonable bounds
+              percentX = percentX.clamp(0.0, 1.0);
+              center = _minX + (range * percentX);
+            }
+            
+            if (event.scrollDelta.dy < 0) {
+              // Zoom in
+              range = range * (1 - zoomFactor);
+            } else if (event.scrollDelta.dy > 0) {
+              // Zoom out
+              range = range * (1 + zoomFactor);
+            }
+            
+            if (box != null) {
+              double localX = event.localPosition.dx;
+              double percentX = localX / box.size.width;
+              percentX = percentX.clamp(0.0, 1.0);
+              _minX = center - (range * percentX);
+              _maxX = center + (range * (1 - percentX));
+            } else {
+              _minX = center - (range / 2);
+              _maxX = center + (range / 2);
+            }
+
+            // Clamp to limits
+            if (_minX < widget.originalMinX) _minX = widget.originalMinX;
+            if (_maxX > widget.originalMaxX) _maxX = widget.originalMaxX;
+            if (_minX >= _maxX) _minX = _maxX - 100;
+          });
+        }
+      });
+    }
+  }
+
+  void _handlePointerMove(PointerMoveEvent event) {
+    if (event.buttons == 1) { // Left click / touch drag
+      setState(() {
+        double range = _maxX - _minX;
+        RenderBox? box = context.findRenderObject() as RenderBox?;
+        double width = box?.size.width ?? 1000.0;
+        
+        double delta = -event.localDelta.dx * (range / width);
+        _minX = _minX + delta;
+        _maxX = _maxX + delta;
+
+        // Clamp to limits
+        if (_minX < widget.originalMinX) _minX = widget.originalMinX;
+        if (_maxX > widget.originalMaxX) _maxX = widget.originalMaxX;
+        if (_minX >= _maxX) _minX = _maxX - 100;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    bool isZoomed = _minX > widget.originalMinX + 1 || _maxX < widget.originalMaxX - 1;
+
+    return Stack(
+      children: [
+        ClipRect(
+          child: MouseRegion(
+            onEnter: (_) => setState(() => _isHovering = true),
+            onExit: (_) => setState(() => _isHovering = false),
+            child: Listener(
+              onPointerSignal: _handlePointerSignal,
+              onPointerMove: _handlePointerMove,
+              child: Padding(
+              padding: const EdgeInsets.only(top: 32.0, right: 16.0, bottom: 8.0),
+                child: widget.builder(context, _minX, _maxX),
+              ),
+            ),
+          ),
+        ),
+        // Top Left Hint
+        AnimatedOpacity(
+          opacity: _isHovering ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 300),
+          child: Container(
+            margin: const EdgeInsets.only(top: 8, left: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(color: RacingTheme.background.withValues(alpha: 0.8), borderRadius: BorderRadius.circular(4)),
+            child: Text('Ctrl + Scroll to zoom', style: TextStyle(color: RacingTheme.textMuted, fontSize: 10)),
+          ),
+        ),
+        
+        // Top Right Actions
+        Positioned(
+          top: 0,
+          right: 8,
+          child: Row(
+            children: [
+              if (isZoomed)
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _minX = widget.originalMinX;
+                      _maxX = widget.originalMaxX;
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(color: RacingTheme.panel, borderRadius: BorderRadius.circular(4), border: Border.all(color: RacingTheme.border)),
+                    child: Text('⊙ RESET', style: TextStyle(color: RacingTheme.textPrimary, fontSize: 10, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              InkWell(
+                onTap: () => _askAi(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(color: RacingTheme.primaryAccent.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4), border: Border.all(color: RacingTheme.primaryAccent)),
+                  child: Text('✦ Ask AI', style: TextStyle(color: RacingTheme.primaryAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}

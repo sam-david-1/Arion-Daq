@@ -7,42 +7,56 @@ import 'settings_service.dart';
 class AiService {
   static const Duration _timeout = Duration(seconds: 30);
 
-  // GROQ
+  // GROQ — tries primary model, falls back to alternatives if decommissioned
+  static const List<String> _groqModels = [
+    'meta-llama/llama-4-scout-17b-16e-instruct',
+    'llama-3.3-70b-versatile',
+    'llama-3.1-8b-instant',
+  ];
+
   static Future<String> askGroq(String apiKey, String systemPrompt, List<Map> history, String userMessage) async {
     const String apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
     
-    try {
-      final List<Map<String, dynamic>> messages = [
-        {'role': 'system', 'content': systemPrompt}
-      ];
-      messages.addAll(history.map((m) => {
-        'role': m['role'] == 'ai' || m['role'] == 'assistant' ? 'assistant' : 'user',
-        'content': m['content'],
-      }));
-      messages.add({'role': 'user', 'content': userMessage});
+    final List<Map<String, dynamic>> messages = [
+      {'role': 'system', 'content': systemPrompt}
+    ];
+    messages.addAll(history.map((m) => {
+      'role': m['role'] == 'ai' || m['role'] == 'assistant' ? 'assistant' : 'user',
+      'content': m['content'],
+    }));
+    messages.add({'role': 'user', 'content': userMessage});
 
-      final response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {
-          'Authorization': 'Bearer $apiKey',
-          'content-type': 'application/json',
-        },
-        body: jsonEncode({
-          'model': 'llama3-8b-8192',
-          'max_tokens': 1024,
-          'messages': messages,
-        }),
-      ).timeout(_timeout);
+    for (final model in _groqModels) {
+      try {
+        final response = await http.post(
+          Uri.parse(apiUrl),
+          headers: {
+            'Authorization': 'Bearer $apiKey',
+            'content-type': 'application/json',
+          },
+          body: jsonEncode({
+            'model': model,
+            'max_tokens': 1024,
+            'messages': messages,
+          }),
+        ).timeout(_timeout);
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['choices'][0]['message']['content'];
-      } else {
-        return "Error: Groq API Code ${response.statusCode} - ${response.body}";
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          return data['choices'][0]['message']['content'];
+        } else if (response.statusCode == 404 || response.statusCode == 400) {
+          // Model not found or decommissioned — try next model
+          debugPrint('Groq model $model unavailable (${response.statusCode}), trying next...');
+          continue;
+        } else {
+          return "Error: Groq API Code ${response.statusCode} - ${response.body}";
+        }
+      } catch (e) {
+        debugPrint('Groq model $model failed: $e');
+        continue;
       }
-    } catch (e) {
-      return "Error: Groq request failed - $e";
     }
+    return "Error: All Groq models unavailable. Check your API key or try Gemini.";
   }
 
   // GEMINI (via OpenRouter)

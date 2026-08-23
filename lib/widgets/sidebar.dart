@@ -232,9 +232,8 @@ class _SidebarState extends State<Sidebar> {
                         ? const AiChatPanel()
                         : _buildParamsList(provider, data, context)),
                 ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
               ),
             ),
           ),

@@ -44,9 +44,15 @@ class DynamicsTab extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: !hasData || !provider.availableChannels.contains('Gyro_X') || !provider.availableChannels.contains('Gyro_Y')
-              ? Center(child: Text('IMU Data N/A', style: Theme.of(context).textTheme.bodySmall))
-              : LayoutBuilder(
+            child: () {
+              // Smart detection: check for ANY lateral/longitudinal G source
+              final channels = provider.availableChannels;
+              bool hasLatG = channels.contains('LatAccel_G') || channels.contains('Ay') || channels.contains('Lateral G') || channels.contains('Gyro_X');
+              bool hasLongG = channels.contains('LongAccel_G') || channels.contains('Ax') || channels.contains('Longitudinal G') || channels.contains('Gyro_Y');
+              if (!hasData || !hasLatG || !hasLongG) {
+                return Center(child: Text('IMU Data N/A', style: Theme.of(context).textTheme.bodySmall));
+              }
+              return LayoutBuilder(
                   builder: (context, constraints) {
                     final size = math.min(constraints.maxWidth, constraints.maxHeight) - 40;
                     return Center(
@@ -92,7 +98,8 @@ class DynamicsTab extends StatelessWidget {
                       ),
                     );
                   },
-                ),
+                );
+            }(),
           ),
         ],
       ),

@@ -352,11 +352,23 @@ class DaqProvider extends ChangeNotifier {
     
     _currentSensorValues = {..._currentSensorValues, ...newDoubles, ...derived};
     
-    double? gyroX = _currentSensorValues['Gyro_X'];
-    double? gyroY = _currentSensorValues['Gyro_Y'];
-    if (gyroX != null && gyroY != null) {
-      double latG = gyroX / 131.0;
-      double longG = gyroY / 131.0;
+    // Build ggTrail from any available lateral/longitudinal G source
+    double? latG = _currentSensorValues['Lateral G'] 
+        ?? _currentSensorValues['LatAccel_G'] 
+        ?? _currentSensorValues['Ay'];
+    double? longG = _currentSensorValues['Longitudinal G'] 
+        ?? _currentSensorValues['LongAccel_G'] 
+        ?? _currentSensorValues['Ax'];
+    // Fallback to raw gyro (divided by sensitivity)
+    if (latG == null) {
+      double? gx = _currentSensorValues['Gyro_X'];
+      if (gx != null) latG = gx / 131.0;
+    }
+    if (longG == null) {
+      double? gy = _currentSensorValues['Gyro_Y'];
+      if (gy != null) longG = gy / 131.0;
+    }
+    if (latG != null && longG != null) {
       _ggTrail.add(Offset(latG, longG));
       if (_ggTrail.length > 100) {
         _ggTrail.removeAt(0);

@@ -407,30 +407,39 @@ class _SettingsTabState extends State<SettingsTab> {
                       const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
-                        child: ElevatedButton.icon(
+                        child: OutlinedButton.icon(
                           onPressed: () {
                             showDialog(
                               context: context,
                               builder: (context) => const ChannelConfigurationDialog(),
                             );
                           },
-                          icon: Icon(Icons.settings_input_component, size: 16, color: Colors.black),
-                          label: Text('MANAGE CHANNEL CONFIGURATION', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                          style: ElevatedButton.styleFrom(backgroundColor: RacingTheme.primaryAccent),
+                          icon: Icon(Icons.settings_input_component, size: 14, color: RacingTheme.primaryAccent),
+                          label: Text('Channel Configuration', style: TextStyle(color: RacingTheme.primaryAccent, fontSize: 12)),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: RacingTheme.primaryAccent.withValues(alpha: 0.5)),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            minimumSize: const Size(0, 36),
+                          ),
                         ),
                       ),
+                      const SizedBox(height: 8),
                       SizedBox(
                         width: double.infinity,
-                        child: ElevatedButton.icon(
+                        child: OutlinedButton.icon(
                           onPressed: () {
                             showDialog(
                               context: context,
                               builder: (context) => const CustomChannelEditor(),
                             );
                           },
-                          icon: Icon(Icons.calculate, size: 16, color: Colors.black),
-                          label: Text('MANAGE MATH CHANNELS', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                          style: ElevatedButton.styleFrom(backgroundColor: RacingTheme.primaryAccent),
+                          icon: Icon(Icons.calculate, size: 14, color: RacingTheme.primaryAccent),
+                          label: Text('Math Channels', style: TextStyle(color: RacingTheme.primaryAccent, fontSize: 12)),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: RacingTheme.primaryAccent.withValues(alpha: 0.5)),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            minimumSize: const Size(0, 36),
+                          ),
                         ),
                       ),
                     ],
@@ -649,16 +658,20 @@ class _SettingsTabState extends State<SettingsTab> {
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton.icon(
+                    child: OutlinedButton.icon(
                       onPressed: () {
                         showDialog(
                           context: context,
                           builder: (context) => const CustomChannelEditor(),
                         );
                       },
-                      icon: Icon(Icons.calculate, size: 16, color: Colors.black),
-                      label: Text('MANAGE MATH CHANNELS', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                      style: ElevatedButton.styleFrom(backgroundColor: RacingTheme.primaryAccent),
+                      icon: Icon(Icons.calculate, size: 14, color: RacingTheme.primaryAccent),
+                      label: Text('Math Channels', style: TextStyle(color: RacingTheme.primaryAccent, fontSize: 12)),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: RacingTheme.primaryAccent.withValues(alpha: 0.5)),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        minimumSize: const Size(0, 36),
+                      ),
                     ),
                   ),
                 ],

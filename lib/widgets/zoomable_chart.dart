@@ -143,15 +143,18 @@ class _ZoomableChartState extends State<ZoomableChart> {
             ),
           ),
         ),
-        // Top Left Hint
-        AnimatedOpacity(
-          opacity: _isHovering ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 300),
-          child: Container(
-            margin: const EdgeInsets.only(top: 8, left: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(color: RacingTheme.background.withValues(alpha: 0.8), borderRadius: BorderRadius.circular(4)),
-            child: Text('Ctrl + Scroll to zoom', style: TextStyle(color: RacingTheme.textMuted, fontSize: 10)),
+        // Top Left Hint — positioned to avoid title overlap
+        Positioned(
+          top: 8,
+          right: 80,
+          child: AnimatedOpacity(
+            opacity: _isHovering ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 300),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(color: RacingTheme.background.withValues(alpha: 0.85), borderRadius: BorderRadius.circular(3), border: Border.all(color: RacingTheme.border.withValues(alpha: 0.5))),
+              child: Text('Ctrl + Scroll to zoom', style: TextStyle(color: RacingTheme.textMuted, fontSize: 9)),
+            ),
           ),
         ),
         

@@ -255,30 +255,51 @@ class _TopBarState extends State<TopBar> {
               
               const SizedBox(width: 16),
               
-              // Center: Tabs
+              // Center: Tabs — fill all available space
               Expanded(
-                child: TabBar(
-                  controller: widget.tabController,
-                  isScrollable: true,
-                  indicatorColor: RacingTheme.primaryAccent,
-                  indicatorWeight: 2,
-                  tabAlignment: TabAlignment.start,
-                  labelPadding: const EdgeInsets.symmetric(horizontal: 12),
-                  labelColor: RacingTheme.primaryAccent,
-                  unselectedLabelColor: RacingTheme.textMuted,
-                  labelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: 12),
-                  tabs: const [
-                    Tab(text: 'ANALYSIS'),
-                    Tab(text: 'OVERVIEW'),
-                    Tab(text: 'BRAKES'),
-                    Tab(text: 'DYNAMICS'),
-                    Tab(text: 'CHANNELS'),
-                    Tab(text: 'HISTORY'),
-                    Tab(text: 'CONVERT'),
-                    Tab(text: 'MAP'),
-                    Tab(text: 'SERIAL'),
-                    Tab(text: 'SETTINGS'),
-                  ],
+                child: Theme(
+                  data: Theme.of(context).copyWith(
+                    splashColor: RacingTheme.primaryAccent.withValues(alpha: 0.08),
+                    highlightColor: RacingTheme.primaryAccent.withValues(alpha: 0.05),
+                    hoverColor: RacingTheme.primaryAccent.withValues(alpha: 0.04),
+                  ),
+                  child: TabBar(
+                    controller: widget.tabController,
+                    isScrollable: false,
+                    indicatorColor: RacingTheme.primaryAccent,
+                    indicatorWeight: 2.5,
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    dividerColor: Colors.transparent,
+                    labelColor: RacingTheme.primaryAccent,
+                    unselectedLabelColor: RacingTheme.textMuted,
+                    labelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                    ),
+                    unselectedLabelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.8,
+                    ),
+                    overlayColor: WidgetStateProperty.resolveWith((states) {
+                      if (states.contains(WidgetState.hovered)) return RacingTheme.primaryAccent.withValues(alpha: 0.06);
+                      if (states.contains(WidgetState.pressed)) return RacingTheme.primaryAccent.withValues(alpha: 0.12);
+                      return Colors.transparent;
+                    }),
+                    tabs: const [
+                      Tab(text: 'ANALYSIS'),
+                      Tab(text: 'OVERVIEW'),
+                      Tab(text: 'BRAKES'),
+                      Tab(text: 'DYNAMICS'),
+                      Tab(text: 'CHANNELS'),
+                      Tab(text: 'HISTORY'),
+                      Tab(text: 'CONVERT'),
+                      Tab(text: 'MAP'),
+                      Tab(text: 'SERIAL'),
+                      Tab(text: 'SETTINGS'),
+                    ],
+                  ),
                 ),
               ),
               

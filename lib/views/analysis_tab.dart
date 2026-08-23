@@ -110,7 +110,7 @@ class _AnalysisTabState extends State<AnalysisTab> {
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 56,
+                      reservedSize: 44,
                       interval: maxY > 0 ? (maxY / 5).clamp(1.0, double.infinity) : 1000,
                       getTitlesWidget: (val, meta) {
                         if (val == meta.max || val == meta.min) return const SizedBox.shrink();
@@ -132,14 +132,20 @@ class _AnalysisTabState extends State<AnalysisTab> {
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 32,
+                      reservedSize: 40,
                       getTitlesWidget: (val, meta) {
                         if (val.toInt() >= 0 && val.toInt() < sortedKeys.length) {
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Transform.rotate(
-                              angle: -pi / 4,
-                              child: Text(sortedKeys[val.toInt()], style: TextStyle(color: RacingTheme.textPrimary, fontSize: 9)),
+                          return SideTitleWidget(
+                            meta: meta,
+                            child: SizedBox(
+                              width: 40,
+                              child: Text(
+                                sortedKeys[val.toInt()],
+                                style: TextStyle(color: RacingTheme.textMuted, fontSize: 8),
+                                textAlign: TextAlign.center,
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 2,
+                              ),
                             ),
                           );
                         }

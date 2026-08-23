@@ -263,10 +263,10 @@ class _TopBarState extends State<TopBar> {
                   indicatorColor: RacingTheme.primaryAccent,
                   indicatorWeight: 2,
                   tabAlignment: TabAlignment.start,
-                  labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 12),
                   labelColor: RacingTheme.primaryAccent,
                   unselectedLabelColor: RacingTheme.textMuted,
-                  labelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: 13),
+                  labelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: 12),
                   tabs: const [
                     Tab(text: 'ANALYSIS'),
                     Tab(text: 'OVERVIEW'),

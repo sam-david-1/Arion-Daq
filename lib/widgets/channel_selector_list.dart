@@ -38,13 +38,13 @@ class ChannelSelectorList extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(border: Border(bottom: BorderSide(color: RacingTheme.border))),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('CHANNELS', style: TextStyle(color: RacingTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 13)),
-              const SizedBox(height: 8),
+              Text('CHANNELS', style: TextStyle(color: RacingTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.5)),
+              const SizedBox(height: 6),
               Wrap(
                 spacing: 4,
                 runSpacing: 4,
@@ -68,19 +68,22 @@ class ChannelSelectorList extends StatelessWidget {
               return Theme(
                 data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                 child: ExpansionTile(
-                  title: Text(group, style: TextStyle(color: RacingTheme.primaryAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+                  title: Text(group, style: TextStyle(color: RacingTheme.primaryAccent, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                   initiallyExpanded: true,
+                  tilePadding: const EdgeInsets.symmetric(horizontal: 10),
+                  childrenPadding: EdgeInsets.zero,
                   children: channels.map((channel) {
                     var def = ParameterRegistry().getParameter(channel);
                     return CheckboxListTile(
-                      title: Text(def.displayName, style: TextStyle(color: RacingTheme.textPrimary, fontSize: 13)),
+                      title: Text(def.displayName, style: TextStyle(color: RacingTheme.textPrimary, fontSize: 12)),
                       value: selectedChannels.contains(channel),
                       onChanged: (val) => onToggle(channel, val),
                       activeColor: def.color,
                       checkColor: RacingTheme.background,
                       controlAffinity: ListTileControlAffinity.leading,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                      visualDensity: VisualDensity.compact,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                      visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+                      dense: true,
                     );
                   }).toList(),
                 ),

@@ -113,16 +113,20 @@ class _OverviewTabState extends State<OverviewTab> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(value, style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                        fontFamily: 'JetBrains Mono',
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                      )),
-                      const SizedBox(width: 4),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Text(unit, style: Theme.of(context).textTheme.labelSmall),
+                      Flexible(
+                        child: Text(value, style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                          fontFamily: 'JetBrains Mono',
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                        ), overflow: TextOverflow.ellipsis),
                       ),
+                      if (unit.isNotEmpty && value != 'N/A') ...[
+                        const SizedBox(width: 4),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 3),
+                          child: Text(unit, style: Theme.of(context).textTheme.labelSmall?.copyWith(fontSize: 11)),
+                        ),
+                      ],
                     ],
                   ),
                 ],
@@ -216,7 +220,7 @@ class _OverviewTabState extends State<OverviewTab> {
                           leftTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
-                              reservedSize: 56,
+                              reservedSize: 44,
                               interval: (maxY != null && minY != null) ? ((maxY - minY) / 5).clamp(0.1, double.infinity) : null,
                               getTitlesWidget: (val, meta) {
                                 if (val == meta.max || val == meta.min) return const SizedBox.shrink();

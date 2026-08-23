@@ -529,7 +529,7 @@ class _SessionHistoryTabState extends State<SessionHistoryTab> {
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 56,
+                reservedSize: 44,
                 interval: (maxY != null && minY != null) ? ((maxY - minY) / 5).clamp(0.1, double.infinity) : null,
                 getTitlesWidget: (val, meta) {
                   if (val == meta.max || val == meta.min) return const SizedBox.shrink();

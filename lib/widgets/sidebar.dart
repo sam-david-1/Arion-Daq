@@ -217,7 +217,7 @@ class _SidebarState extends State<Sidebar> {
                           SettingsService().setIsSidebarCollapsed(!isSidebarCollapsed).then((_) => setState((){}));
                         },
                         child: Container(
-                          width: isSidebarCollapsed ? 48.0 : 40.0,
+                          width: isSidebarCollapsed ? 46.0 : 38.0,
                           alignment: Alignment.center,
                           child: Icon(isSidebarCollapsed ? Icons.chevron_right : Icons.chevron_left, size: 16, color: RacingTheme.primaryAccent),
                         ),

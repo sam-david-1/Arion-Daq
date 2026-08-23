@@ -394,6 +394,25 @@ class DynamicsTab extends StatelessWidget {
             return def.group == 'IMU';
           }).toList();
           
+          // Deduplicate: if both a raw channel and its derived counterpart
+          // share the same displayName, keep only the derived one.
+          Set<String> seenDisplayNames = {};
+          List<String> deduped = [];
+          // Process derived channels first so they get priority
+          imuChannels.sort((a, b) {
+            final aDerived = ParameterRegistry().getParameter(a).isDerived ? 0 : 1;
+            final bDerived = ParameterRegistry().getParameter(b).isDerived ? 0 : 1;
+            return aDerived.compareTo(bDerived);
+          });
+          for (String ch in imuChannels) {
+            final def = ParameterRegistry().getParameter(ch);
+            if (!seenDisplayNames.contains(def.displayName)) {
+              seenDisplayNames.add(def.displayName);
+              deduped.add(ch);
+            }
+          }
+          imuChannels = deduped;
+          
           for (String channel in imuChannels) {
             final def = ParameterRegistry().getParameter(channel);
             List<FlSpot> spots = [];

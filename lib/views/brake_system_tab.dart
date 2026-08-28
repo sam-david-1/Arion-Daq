@@ -146,7 +146,7 @@ class _BrakeSystemTabState extends State<BrakeSystemTab> {
                         getTooltipColor: (spot) => RacingTheme.panel,
                         getTooltipItems: (touchedSpots) {
                           return touchedSpots.map((s) => LineTooltipItem(
-                            '${s.y.toStringAsFixed(1)}\n@ ${(s.x / 1000).toStringAsFixed(1)}s',
+                            '${s.y.toStringAsFixed(1)} @ ${(s.x / 1000).toStringAsFixed(1)}s',
                             RacingTheme.chartTextStyle,
                           )).toList();
                         },
@@ -164,10 +164,6 @@ class _BrakeSystemTabState extends State<BrakeSystemTab> {
                   ),
                 ),
               ),
-              ),
-              Positioned(
-                top: 12, left: 12,
-                child: Text(title, style: TextStyle(color: RacingTheme.textPrimary, fontSize: 12, fontWeight: FontWeight.bold)),
               ),
             ],
           ),

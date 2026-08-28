@@ -25,5 +25,7 @@ dist-ssr
 
 .dart_tool/
 build/
+Output/
+scratch/
 .flutter-plugins
 .flutter-plugins-dependencies

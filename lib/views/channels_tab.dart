@@ -37,7 +37,9 @@ class _ChannelsTabState extends State<ChannelsTab> {
               : ZoomableChart(
                   originalMinX: minX,
                   originalMaxX: maxX,
-                  channelName: selected.join(', '),
+                  channelName: selected.length <= 3 
+                      ? selected.map((c) => ParameterRegistry().getParameter(c).displayName).join(', ')
+                      : '${selected.length} Channels Overlaid',
                   builder: (context, currentMinX, currentMaxX) => RepaintBoundary(
                     child: LineChart(
                       LineChartData(

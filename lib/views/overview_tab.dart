@@ -527,7 +527,7 @@ class _OverviewTabState extends State<OverviewTab> {
         }
 
         // Latest alert
-        String alertText = "ALL SYSTEMS NOMINAL";
+        String alertText = "";
         Color alertColor = RacingTheme.textMuted;
         if (hasData && provider.alerts.isNotEmpty) {
           var pastAlerts = provider.alerts.where((a) => a['time'] <= provider.currentTimestampMs).toList();

@@ -52,60 +52,54 @@ class _ZoomableChartState extends State<ZoomableChart> {
     provider.askAi('Analyze the ${widget.channelName} channel specifically for this session.');
   }
 
+  void _applyZoom(double zoomFactor, double focalX) {
+    setState(() {
+      double range = _maxX - _minX;
+      
+      RenderBox? box = context.findRenderObject() as RenderBox?;
+      double center = (_maxX + _minX) / 2;
+      double percentX = 0.5;
+      if (box != null) {
+        double width = box.size.width;
+        percentX = (focalX / width).clamp(0.0, 1.0);
+        center = _minX + (range * percentX);
+      }
+      
+      range = range * (1 - zoomFactor);
+      
+      if (box != null) {
+        _minX = center - (range * percentX);
+        _maxX = center + (range * (1 - percentX));
+      } else {
+        _minX = center - (range / 2);
+        _maxX = center + (range / 2);
+      }
+
+      // Clamp to limits
+      if (_minX < widget.originalMinX) _minX = widget.originalMinX;
+      if (_maxX > widget.originalMaxX) _maxX = widget.originalMaxX;
+      if (_minX >= _maxX) _minX = _maxX - 100;
+    });
+  }
+
   void _handlePointerSignal(PointerSignalEvent event) {
     if (event is PointerScrollEvent) {
+      // Only zoom when Ctrl is held — let normal scroll pass through
       if (!HardwareKeyboard.instance.isControlPressed) {
-        return; // Let the event pass through to standard scroll views
+        return;
       }
       GestureBinding.instance.pointerSignalResolver.register(event, (PointerSignalEvent event) {
         if (event is PointerScrollEvent) {
-          setState(() {
-            double range = _maxX - _minX;
-            double zoomFactor = 0.10; // 10%
-            
-            // Calculate where the mouse is relative to the chart width to zoom into the mouse
-            RenderBox? box = context.findRenderObject() as RenderBox?;
-            double center = (_maxX + _minX) / 2;
-            if (box != null) {
-              double localX = event.localPosition.dx;
-              double width = box.size.width;
-              double percentX = localX / width;
-              // Ensure percent is within reasonable bounds
-              percentX = percentX.clamp(0.0, 1.0);
-              center = _minX + (range * percentX);
-            }
-            
-            if (event.scrollDelta.dy < 0) {
-              // Zoom in
-              range = range * (1 - zoomFactor);
-            } else if (event.scrollDelta.dy > 0) {
-              // Zoom out
-              range = range * (1 + zoomFactor);
-            }
-            
-            if (box != null) {
-              double localX = event.localPosition.dx;
-              double percentX = localX / box.size.width;
-              percentX = percentX.clamp(0.0, 1.0);
-              _minX = center - (range * percentX);
-              _maxX = center + (range * (1 - percentX));
-            } else {
-              _minX = center - (range / 2);
-              _maxX = center + (range / 2);
-            }
-
-            // Clamp to limits
-            if (_minX < widget.originalMinX) _minX = widget.originalMinX;
-            if (_maxX > widget.originalMaxX) _maxX = widget.originalMaxX;
-            if (_minX >= _maxX) _minX = _maxX - 100;
-          });
+          double zoomFactor = event.scrollDelta.dy < 0 ? 0.10 : -0.10;
+          _applyZoom(zoomFactor, event.localPosition.dx);
         }
       });
     }
   }
 
   void _handlePointerMove(PointerMoveEvent event) {
-    if (event.buttons == 1) { // Left click / touch drag
+    // Only pan when Ctrl is held and left button is down
+    if (event.buttons == 1 && HardwareKeyboard.instance.isControlPressed) {
       setState(() {
         double range = _maxX - _minX;
         RenderBox? box = context.findRenderObject() as RenderBox?;
@@ -137,7 +131,7 @@ class _ZoomableChartState extends State<ZoomableChart> {
               onPointerSignal: _handlePointerSignal,
               onPointerMove: _handlePointerMove,
               child: Padding(
-              padding: const EdgeInsets.only(top: 32.0, right: 16.0, bottom: 8.0),
+                padding: const EdgeInsets.only(top: 32.0, right: 16.0, bottom: 8.0),
                 child: widget.builder(context, _minX, _maxX),
               ),
             ),
@@ -148,7 +142,14 @@ class _ZoomableChartState extends State<ZoomableChart> {
           top: 6, left: 8, right: 8,
           child: Row(
             children: [
-              Text(widget.channelName, style: TextStyle(color: RacingTheme.textPrimary, fontSize: 12, fontWeight: FontWeight.bold)),
+              Flexible(
+                child: Text(
+                  widget.channelName, 
+                  style: TextStyle(color: RacingTheme.textPrimary, fontSize: 12, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
               const SizedBox(width: 8),
               AnimatedOpacity(
                 opacity: _isHovering ? 1.0 : 0.0,
@@ -163,7 +164,7 @@ class _ZoomableChartState extends State<ZoomableChart> {
                   child: Text('Ctrl + Scroll to zoom', style: TextStyle(color: RacingTheme.textMuted, fontSize: 9)),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 4),
               if (isZoomed)
                 InkWell(
                   onTap: () {
@@ -174,7 +175,7 @@ class _ZoomableChartState extends State<ZoomableChart> {
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    margin: const EdgeInsets.only(right: 8),
+                    margin: const EdgeInsets.only(right: 4),
                     decoration: BoxDecoration(color: RacingTheme.panel, borderRadius: BorderRadius.circular(4), border: Border.all(color: RacingTheme.border)),
                     child: Text('⊙ RESET', style: TextStyle(color: RacingTheme.textPrimary, fontSize: 10, fontWeight: FontWeight.bold)),
                   ),

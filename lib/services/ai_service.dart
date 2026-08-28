@@ -14,25 +14,33 @@ class AiService {
     'llama-3.1-8b-instant',
   ];
 
-  static Future<String> askGroq(String apiKey, String systemPrompt, List<Map> history, String userMessage) async {
-    const String apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
-    
+  static List<Map<String, dynamic>> _buildMessages(String systemPrompt, List<Map> history, String userMessage) {
     final List<Map<String, dynamic>> messages = [
       {'role': 'system', 'content': systemPrompt}
     ];
-    messages.addAll(history.map((m) => {
-      'role': m['role'] == 'ai' || m['role'] == 'assistant' ? 'assistant' : 'user',
-      'content': m['content'],
-    }));
+    for (final m in history) {
+      messages.add({
+        'role': (m['role'] == 'ai' || m['role'] == 'assistant') ? 'assistant' : 'user',
+        'content': m['content'] ?? '',
+      });
+    }
     messages.add({'role': 'user', 'content': userMessage});
+    return messages;
+  }
+
+  static Future<String> askGroq(String apiKey, String systemPrompt, List<Map> history, String userMessage) async {
+    const String apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
+    
+    final messages = _buildMessages(systemPrompt, history, userMessage);
 
     for (final model in _groqModels) {
       try {
+        debugPrint('Groq: trying model $model...');
         final response = await http.post(
           Uri.parse(apiUrl),
           headers: {
             'Authorization': 'Bearer $apiKey',
-            'content-type': 'application/json',
+            'Content-Type': 'application/json',
           },
           body: jsonEncode({
             'model': model,
@@ -41,14 +49,20 @@ class AiService {
           }),
         ).timeout(_timeout);
 
+        debugPrint('Groq: model $model responded with ${response.statusCode}');
+
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
-          return data['choices'][0]['message']['content'];
+          if (data['choices'] != null && data['choices'].isNotEmpty) {
+            return data['choices'][0]['message']['content'] ?? 'Empty response from Groq.';
+          }
+          return "Error: Unexpected Groq response format.";
         } else if (response.statusCode == 404 || response.statusCode == 400) {
           // Model not found or decommissioned — try next model
           debugPrint('Groq model $model unavailable (${response.statusCode}), trying next...');
           continue;
         } else {
+          // For other errors (401 auth, 429 rate limit, etc.), return immediately
           return "Error: Groq API Code ${response.statusCode} - ${response.body}";
         }
       } catch (e) {
@@ -64,14 +78,7 @@ class AiService {
     const String apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
     
     try {
-      final List<Map<String, dynamic>> messages = [
-        {'role': 'system', 'content': systemPrompt}
-      ];
-      messages.addAll(history.map((m) => {
-        'role': m['role'] == 'ai' || m['role'] == 'assistant' ? 'assistant' : 'user',
-        'content': m['content'],
-      }));
-      messages.add({'role': 'user', 'content': userMessage});
+      final messages = _buildMessages(systemPrompt, history, userMessage);
 
       final response = await http.post(
         Uri.parse(apiUrl),
@@ -106,7 +113,7 @@ class AiService {
     String provider = providerOverride.isNotEmpty ? providerOverride : settings.aiProvider;
     
     // Inject the No-Yap System Instruction explicitly
-    String finalSystemPrompt = "Act as a robotic, trackside pit-lane computer. Analyze data instantly. Never use, filler text.\n\n$systemPrompt";
+    String finalSystemPrompt = "Act as a robotic, trackside pit-lane computer. Analyze data instantly. Never use filler text.\n\n$systemPrompt";
     
     if (provider == 'gemini') {
       if (settings.geminiApiKey.isEmpty) return "Error: Gemini API key is not set.";

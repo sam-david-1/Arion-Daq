@@ -255,7 +255,7 @@ class _TopBarState extends State<TopBar> {
               
               const SizedBox(width: 16),
               
-              // Center: Tabs — fill all available space
+              // Center: Tabs — scrollable with premium styling
               Expanded(
                 child: Theme(
                   data: Theme.of(context).copyWith(
@@ -265,22 +265,24 @@ class _TopBarState extends State<TopBar> {
                   ),
                   child: TabBar(
                     controller: widget.tabController,
-                    isScrollable: false,
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.start,
                     indicatorColor: RacingTheme.primaryAccent,
                     indicatorWeight: 2.5,
                     indicatorSize: TabBarIndicatorSize.tab,
                     dividerColor: Colors.transparent,
                     labelColor: RacingTheme.primaryAccent,
                     unselectedLabelColor: RacingTheme.textMuted,
+                    labelPadding: const EdgeInsets.symmetric(horizontal: 16),
                     labelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      fontSize: 10,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
+                      letterSpacing: 1.0,
                     ),
                     unselectedLabelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      fontSize: 10,
+                      fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      letterSpacing: 0.3,
+                      letterSpacing: 0.5,
                     ),
                     overlayColor: WidgetStateProperty.resolveWith((states) {
                       if (states.contains(WidgetState.hovered)) return RacingTheme.primaryAccent.withValues(alpha: 0.06);

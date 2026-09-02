@@ -47,7 +47,7 @@ void main() async {
       center: true,
       backgroundColor: Color(0xFF0A0C10),
       title: 'ARION DAQ - AR25',
-      titleBarStyle: TitleBarStyle.normal,
+      titleBarStyle: TitleBarStyle.hidden,
     );
     windowManager.waitUntilReadyToShow(windowOptions, () async {
       await windowManager.show();
@@ -204,6 +204,7 @@ class _MainDashboardShellState extends State<MainDashboardShell> with SingleTick
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: Column(
                   children: [
+                    const CustomTitleBar(),
                     TopBar(tabController: _tabController),
                     Expanded(
                       child: Row(

@@ -142,13 +142,10 @@ class _ZoomableChartState extends State<ZoomableChart> {
           top: 6, left: 8, right: 8,
           child: Row(
             children: [
-              Flexible(
-                child: Text(
-                  widget.channelName, 
-                  style: TextStyle(color: RacingTheme.textPrimary, fontSize: 12, fontWeight: FontWeight.bold),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
+              Text(
+                widget.channelName, 
+                style: TextStyle(color: RacingTheme.textPrimary, fontSize: 12, fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(width: 8),
               AnimatedOpacity(
@@ -164,7 +161,7 @@ class _ZoomableChartState extends State<ZoomableChart> {
                   child: Text('Ctrl + Scroll to zoom', style: TextStyle(color: RacingTheme.textMuted, fontSize: 9)),
                 ),
               ),
-              const SizedBox(width: 4),
+              const Spacer(),
               if (isZoomed)
                 InkWell(
                   onTap: () {

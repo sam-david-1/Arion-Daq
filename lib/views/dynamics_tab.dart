@@ -14,7 +14,70 @@ import '../services/parameter_registry.dart';
 class DynamicsTab extends StatelessWidget {
   const DynamicsTab({super.key});
 
+  /// Resolve which channel name to use for lateral / longitudinal G.
+  static String? _findChannel(List<String> channels, List<String> keywords) {
+    for (var c in channels) {
+      var lower = c.toLowerCase();
+      for (var kw in keywords) {
+        if (lower.contains(kw)) return c;
+      }
+    }
+    return null;
+  }
+
+  /// Read a G value from a data row, applying raw-LSB scaling if needed.
+  static double _readG(Map<String, dynamic> row, String channel, bool isRaw) {
+    double v = (row[channel] as num?)?.toDouble() ?? 0;
+    if (isRaw) v /= 16384.0;
+    return v;
+  }
+
+  /// Detect whether data is raw LSB (values > 50 are clearly not in g).
+  static bool _detectRawLsb(List<Map<String, dynamic>> data, String channel) {
+    for (int i = 0; i < math.min(100, data.length); i++) {
+      double v = (data[i][channel] as num?)?.toDouble() ?? 0;
+      if (v.abs() > 50) return true;
+    }
+    return false;
+  }
+
+  /// Compute the auto-radius for the friction circle from actual data.
+  static double _computeMaxG(List<Map<String, dynamic>> data, String latCh, String longCh, bool isRaw) {
+    double maxG = 0;
+    for (var row in data) {
+      double lat = _readG(row, latCh, isRaw);
+      double lng = _readG(row, longCh, isRaw);
+      double g = math.sqrt(lat * lat + lng * lng);
+      if (g > maxG) maxG = g;
+    }
+    return maxG;
+  }
+
   Widget _buildGgScatter(BuildContext context, DaqProvider provider, bool hasData) {
+    final channels = provider.availableChannels;
+    final latChannel = _findChannel(channels, ['accel_y', 'lat', 'gyro_x', 'gyrox']);
+    final longChannel = _findChannel(channels, ['accel_x', 'long', 'gyro_y', 'gyroy']);
+    final speedChannel = _findChannel(channels, ['speed', 'spd', 'vel']);
+
+    // Current G values
+    double curLatG = 0;
+    double curLongG = 0;
+    bool isRaw = false;
+    double frictionRadius = 2.0;
+
+    if (hasData && latChannel != null && longChannel != null) {
+      isRaw = _detectRawLsb(provider.loadedLogData, latChannel);
+      double dataMaxG = _computeMaxG(provider.loadedLogData, latChannel, longChannel, isRaw);
+      frictionRadius = math.max(2.0, dataMaxG * 1.1);
+
+      int idx = (provider.currentTimestampMs / 10).floor().clamp(0, provider.loadedLogData.length - 1);
+      var row = provider.loadedLogData[idx];
+      curLatG = _readG(row, latChannel, isRaw);
+      curLongG = _readG(row, longChannel, isRaw);
+    }
+
+    double totalG = math.sqrt(curLatG * curLatG + curLongG * curLongG);
+
     return Container(
       decoration: BoxDecoration(
         color: RacingTheme.background,
@@ -44,62 +107,94 @@ class DynamicsTab extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: () {
-              // Smart detection: check for ANY lateral/longitudinal G source
-              final channels = provider.availableChannels;
-              bool hasLatG = channels.contains('LatAccel_G') || channels.contains('Ay') || channels.contains('Lateral G') || channels.contains('Gyro_X');
-              bool hasLongG = channels.contains('LongAccel_G') || channels.contains('Ax') || channels.contains('Longitudinal G') || channels.contains('Gyro_Y');
-              if (!hasData || !hasLatG || !hasLongG) {
-                return Center(child: Text('IMU Data N/A', style: Theme.of(context).textTheme.bodySmall));
-              }
-              return LayoutBuilder(
-                  builder: (context, constraints) {
-                    final size = math.min(constraints.maxWidth, constraints.maxHeight) - 40;
-                    return Center(
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          SizedBox(
-                            width: size,
-                            height: size,
-                            child: RepaintBoundary(
-                              child: CustomPaint(
-                                painter: _GgScatterPainter(
-                                  trail: provider.ggTrail,
-                                  allData: provider.loadedLogData,
-                                  currentTimestampMs: provider.currentTimestampMs,
-                                ),
+            child: (!hasData || latChannel == null || longChannel == null)
+              ? Center(child: Text('IMU Data N/A', style: Theme.of(context).textTheme.bodySmall))
+              : Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
+                  child: Column(
+                    children: [
+                      // TOP: Long G readout
+                      _GReadout(label: 'LONG G', value: curLongG, color: const Color(0xFF7DD3FC), fontSize: 20),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            // LEFT: Lat L readout
+                            _GReadout(label: 'LAT L', value: -curLatG.abs(), color: const Color(0xFFF59E0B), fontSize: 16, vertical: true),
+                            // CENTER: Diagram
+                            Expanded(
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final size = math.min(constraints.maxWidth, constraints.maxHeight);
+                                  return Center(
+                                    child: SizedBox(
+                                      width: size,
+                                      height: size,
+                                      child: Stack(
+                                        children: [
+                                          RepaintBoundary(
+                                            child: CustomPaint(
+                                              size: Size(size, size),
+                                              painter: _GgScatterPainter(
+                                                allData: provider.loadedLogData,
+                                                currentTimestampMs: provider.currentTimestampMs,
+                                                latChannel: latChannel,
+                                                longChannel: longChannel,
+                                                speedChannel: speedChannel,
+                                                frictionRadius: frictionRadius,
+                                              ),
+                                            ),
+                                          ),
+                                          // Axis labels
+                                          Positioned(top: 2, left: 0, right: 0, child: Center(child: Text('Accel (+G)', style: RacingTheme.chartTextStyle.copyWith(fontSize: 11, fontWeight: FontWeight.bold)))),
+                                          Positioned(bottom: 2, left: 0, right: 0, child: Center(child: Text('Brake (-G)', style: RacingTheme.chartTextStyle.copyWith(fontSize: 11, fontWeight: FontWeight.bold)))),
+                                          Positioned(right: 2, top: 0, bottom: 0, child: Center(child: RotatedBox(quarterTurns: 1, child: Text('Right (+G)', style: RacingTheme.chartTextStyle.copyWith(fontSize: 11, fontWeight: FontWeight.bold))))),
+                                          Positioned(left: 2, top: 0, bottom: 0, child: Center(child: RotatedBox(quarterTurns: 3, child: Text('Left (-G)', style: RacingTheme.chartTextStyle.copyWith(fontSize: 11, fontWeight: FontWeight.bold))))),
+                                          // Position readout box
+                                          Positioned(
+                                            top: 8,
+                                            left: 8,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFF111418),
+                                                border: Border.all(color: const Color(0xFF1E2530)),
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text('LAT:  ${curLatG >= 0 ? "+" : ""}${curLatG.toStringAsFixed(2)} g', style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 11, color: Colors.white)),
+                                                  Text('LONG: ${curLongG >= 0 ? "+" : ""}${curLongG.toStringAsFixed(2)} g', style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 11, color: Colors.white)),
+                                                  Text('TOTAL: ${totalG.toStringAsFixed(2)} g', style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 11, color: Color(0xFF7DD3FC))),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
-                          ),
-                          Positioned(
-                            top: 0,
-                            child: Text('Accel (+G)', style: RacingTheme.chartTextStyle.copyWith(fontSize: 12, fontWeight: FontWeight.bold)),
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            child: Text('Brake (-G)', style: RacingTheme.chartTextStyle.copyWith(fontSize: 12, fontWeight: FontWeight.bold)),
-                          ),
-                          Positioned(
-                            right: 0,
-                            child: RotatedBox(
-                              quarterTurns: 1,
-                              child: Text('Right (+G)', style: RacingTheme.chartTextStyle.copyWith(fontSize: 12, fontWeight: FontWeight.bold)),
-                            ),
-                          ),
-                          Positioned(
-                            left: 0,
-                            child: RotatedBox(
-                              quarterTurns: 3,
-                              child: Text('Left (-G)', style: RacingTheme.chartTextStyle.copyWith(fontSize: 12, fontWeight: FontWeight.bold)),
-                            ),
-                          ),
-                        ],
+                            // RIGHT: Lat R readout
+                            _GReadout(label: 'LAT R', value: curLatG.abs(), color: const Color(0xFFF59E0B), fontSize: 16, vertical: true),
+                          ],
+                        ),
                       ),
-                    );
-                  },
-                );
-            }(),
+                      // BOTTOM: Brake G readout
+                      _GReadout(label: 'BRAKE G', value: -curLongG.abs(), color: const Color(0xFFEF4444), fontSize: 20),
+                      // Friction limit label
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(
+                          'Friction limit: ${frictionRadius.toStringAsFixed(1)}g',
+                          style: TextStyle(color: RacingTheme.textMuted, fontSize: 11),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
           ),
         ],
       ),
@@ -450,17 +545,86 @@ class DynamicsTab extends StatelessWidget {
   }
 }
 
+/// Small readout widget for G values around the diagram.
+class _GReadout extends StatelessWidget {
+  final String label;
+  final double value;
+  final Color color;
+  final double fontSize;
+  final bool vertical;
+
+  const _GReadout({
+    required this.label,
+    required this.value,
+    required this.color,
+    this.fontSize = 20,
+    this.vertical = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sign = value >= 0 ? '+' : '';
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label, style: TextStyle(color: RacingTheme.textMuted, fontSize: 10, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 2),
+        Text(
+          '$sign${value.toStringAsFixed(2)} g',
+          style: TextStyle(color: color, fontSize: fontSize, fontWeight: FontWeight.bold, fontFamily: 'JetBrains Mono'),
+        ),
+      ],
+    );
+
+    if (vertical) {
+      return SizedBox(
+        width: 60,
+        child: Center(child: RotatedBox(quarterTurns: vertical ? 0 : 0, child: content)),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Center(child: content),
+    );
+  }
+}
+
 class _GgScatterPainter extends CustomPainter {
-  final List<Offset> trail;
   final List<Map<String, dynamic>> allData;
   final int currentTimestampMs;
+  final String latChannel;
+  final String longChannel;
+  final String? speedChannel;
+  final double frictionRadius;
   
-  _GgScatterPainter({required this.trail, required this.allData, required this.currentTimestampMs});
+  _GgScatterPainter({
+    required this.allData, 
+    required this.currentTimestampMs,
+    required this.latChannel,
+    required this.longChannel,
+    this.speedChannel,
+    required this.frictionRadius,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (allData.isEmpty) return;
+
     final center = Offset(size.width / 2, size.height / 2);
-    final scale = size.width / 6; // -3g to +3g
+    
+    // Detect raw LSB
+    bool isRawLsb = false;
+    for (int i = 0; i < math.min(100, allData.length); i++) {
+      double lat = (allData[i][latChannel] as num?)?.toDouble() ?? 0;
+      if (lat.abs() > 50) {
+        isRawLsb = true;
+        break;
+      }
+    }
+
+    // Display range = frictionRadius (already auto-calculated), add 10% margin
+    double displayG = frictionRadius * 1.1;
+    final scale = (size.width / 2) / displayG;
 
     final paintGrid = Paint()..color = RacingTheme.border..style = PaintingStyle.stroke..strokeWidth = 1;
     final paintLimit = Paint()..color = RacingTheme.danger..style = PaintingStyle.stroke..strokeWidth = 1.5..strokeCap = StrokeCap.round;
@@ -469,31 +633,106 @@ class _GgScatterPainter extends CustomPainter {
     canvas.drawLine(Offset(center.dx, 0), Offset(center.dx, size.height), paintGrid);
     canvas.drawLine(Offset(0, center.dy), Offset(size.width, center.dy), paintGrid);
 
-    // 2g limit circle (dashed logic simplified for custom paint, we just draw solid for now unless we implement path metrics, wait prompt says dashed)
-    _drawDashedCircle(canvas, center, 2 * scale, paintLimit);
+    // Friction circle — auto-calculated radius
+    _drawDashedCircle(canvas, center, frictionRadius * scale, paintLimit);
 
-    // Scatter points
-    final paintDots = Paint()
-      ..color = RacingTheme.primaryAccent.withOpacity(0.4)
-      ..style = PaintingStyle.fill;
+    // Find current index
+    int currentIndex = (currentTimestampMs / 10).floor().clamp(0, allData.length - 1);
+    if (allData[currentIndex]['Time_ms'] != null) {
+      while (currentIndex < allData.length - 1 && (allData[currentIndex]['Time_ms'] as num).toDouble() < currentTimestampMs) {
+        currentIndex++;
+      }
+      while (currentIndex > 0 && (allData[currentIndex]['Time_ms'] as num).toDouble() > currentTimestampMs) {
+        currentIndex--;
+      }
+    }
+
+    // Plot ALL data points with state-based coloring
+    final paintDots = Paint()..style = PaintingStyle.fill;
+    
+    for (var row in allData) {
+      double lat = (row[latChannel] as num?)?.toDouble() ?? 0;
+      double lng = (row[longChannel] as num?)?.toDouble() ?? 0;
+      if (isRawLsb) {
+        lat /= 16384.0;
+        lng /= 16384.0;
+      }
       
-    // Trail
-    final paintTrail = Paint()
-      ..style = PaintingStyle.fill;
+      // State-based coloring
+      paintDots.color = _stateColor(lat, lng);
       
-    for (int i = 0; i < trail.length; i++) {
-      double opacity = (i / trail.length).clamp(0.0, 1.0);
-      paintTrail.color = RacingTheme.primaryAccent.withOpacity(opacity);
-      Offset pos = Offset(center.dx + trail[i].dx * scale, center.dy - trail[i].dy * scale);
-      canvas.drawCircle(pos, 3, paintTrail);
+      Offset pos = Offset(center.dx + lat * scale, center.dy - lng * scale);
+      canvas.drawCircle(pos, 2, paintDots);
     }
     
-    // Current point
-    if (trail.isNotEmpty) {
-      final paintCurrent = Paint()..color = Colors.white..style = PaintingStyle.fill;
-      Offset pos = Offset(center.dx + trail.last.dx * scale, center.dy - trail.last.dy * scale);
-      canvas.drawCircle(pos, 6, paintCurrent);
+    // Trail of last 50 points
+    final paintTrail = Paint()..style = PaintingStyle.fill;
+    int trailStart = math.max(0, currentIndex - 50);
+    List<Offset> trail = [];
+    
+    for (int i = trailStart; i <= currentIndex; i++) {
+      double lat = (allData[i][latChannel] as num?)?.toDouble() ?? 0;
+      double lng = (allData[i][longChannel] as num?)?.toDouble() ?? 0;
+      if (isRawLsb) {
+        lat /= 16384.0;
+        lng /= 16384.0;
+      }
+      trail.add(Offset(center.dx + lat * scale, center.dy - lng * scale));
     }
+    
+    for (int i = 0; i < trail.length; i++) {
+      double opacity = (i / math.max(trail.length, 1)).clamp(0.0, 1.0);
+      paintTrail.color = const Color(0xFF7DD3FC).withOpacity(opacity);
+      canvas.drawCircle(trail[i], 5, paintTrail);
+    }
+
+    // Crosshair lines at current G position
+    if (trail.isNotEmpty) {
+      final crosshairPaint = Paint()
+        ..color = const Color(0xFF7DD3FC).withOpacity(0.4)
+        ..strokeWidth = 1
+        ..style = PaintingStyle.stroke;
+      
+      // Horizontal dashed line at current Y (long G)
+      _drawDashedLine(canvas, Offset(0, trail.last.dy), Offset(size.width, trail.last.dy), crosshairPaint);
+      // Vertical dashed line at current X (lat G)
+      _drawDashedLine(canvas, Offset(trail.last.dx, 0), Offset(trail.last.dx, size.height), crosshairPaint);
+    }
+    
+    // Current point with glow
+    if (trail.isNotEmpty) {
+      // Get current G values for state color
+      double curLat = (allData[currentIndex][latChannel] as num?)?.toDouble() ?? 0;
+      double curLng = (allData[currentIndex][longChannel] as num?)?.toDouble() ?? 0;
+      if (isRawLsb) {
+        curLat /= 16384.0;
+        curLng /= 16384.0;
+      }
+
+      final paintGlow = Paint()
+        ..color = Colors.white.withOpacity(0.5)
+        ..style = PaintingStyle.fill
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+      final paintCurrent = Paint()..color = Colors.white..style = PaintingStyle.fill;
+      
+      canvas.drawCircle(trail.last, 14, paintGlow);
+      canvas.drawCircle(trail.last, 8, paintCurrent);
+    }
+  }
+
+  /// Returns a color based on the vehicle's dynamic state.
+  Color _stateColor(double latG, double longG) {
+    const threshold = 0.15;
+    bool braking = longG < -threshold;
+    bool accelerating = longG > threshold;
+    bool cornering = latG.abs() > threshold;
+
+    if (braking && cornering) return Colors.orange.withOpacity(0.6);   // combined
+    if (accelerating && cornering) return Colors.orange.withOpacity(0.6);
+    if (braking) return const Color(0xFFEF4444).withOpacity(0.6);       // braking
+    if (accelerating) return const Color(0xFF22C55E).withOpacity(0.6);  // accelerating
+    if (cornering) return const Color(0xFFF59E0B).withOpacity(0.6);     // cornering
+    return const Color(0xFF3B82F6).withOpacity(0.6);                    // coasting
   }
   
   void _drawDashedCircle(Canvas canvas, Offset center, double radius, Paint paint) {
@@ -501,6 +740,7 @@ class _GgScatterPainter extends CustomPainter {
     final dashSpace = 5.0;
     final circumference = 2 * math.pi * radius;
     final dashCount = (circumference / (dashWidth + dashSpace)).floor();
+    if (dashCount <= 0) return;
     final sweepAngle = (2 * math.pi) / dashCount;
     
     for (int i = 0; i < dashCount; i++) {
@@ -513,6 +753,31 @@ class _GgScatterPainter extends CustomPainter {
           paint,
         );
       }
+    }
+  }
+
+  void _drawDashedLine(Canvas canvas, Offset start, Offset end, Paint paint) {
+    const dashWidth = 4.0;
+    const dashSpace = 4.0;
+    final dx = end.dx - start.dx;
+    final dy = end.dy - start.dy;
+    final dist = math.sqrt(dx * dx + dy * dy);
+    if (dist == 0) return;
+    final unitX = dx / dist;
+    final unitY = dy / dist;
+    double drawn = 0;
+    bool draw = true;
+    while (drawn < dist) {
+      final segLen = math.min(draw ? dashWidth : dashSpace, dist - drawn);
+      if (draw) {
+        canvas.drawLine(
+          Offset(start.dx + unitX * drawn, start.dy + unitY * drawn),
+          Offset(start.dx + unitX * (drawn + segLen), start.dy + unitY * (drawn + segLen)),
+          paint,
+        );
+      }
+      drawn += segLen;
+      draw = !draw;
     }
   }
 

@@ -389,24 +389,24 @@ class _OverviewTabState extends State<OverviewTab> {
               ],
             ),
           ),
-            
-          const SizedBox(height: 8),
-          
-          // Bottom Alert Strip
-          Container(
-            height: 32,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: RacingTheme.panel,
-              border: Border(top: BorderSide(color: RacingTheme.border, width: 1)),
+          if (alertText.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            // Bottom Alert Strip
+            Container(
+              height: 32,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: RacingTheme.panel,
+                border: Border(top: BorderSide(color: RacingTheme.border, width: 1)),
+              ),
+              alignment: Alignment.centerLeft,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                alertText, 
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: alertColor, fontWeight: FontWeight.bold)
+              ),
             ),
-            alignment: Alignment.centerLeft,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              alertText, 
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: alertColor, fontWeight: FontWeight.bold)
-            ),
-          ),
+          ],
         ],
       ),
     );

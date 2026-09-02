@@ -40,7 +40,7 @@ class _StatusBarState extends State<StatusBar> {
         String statusText = isConnected ? 'Status: Connected' : 'Status: Disconnected';
         Color statusColor = isConnected ? RacingTheme.success : RacingTheme.danger;
 
-        String filename = provider.loadedLogData.isNotEmpty ? 'Session_Data.csv' : 'None';
+        String filename = provider.loadedFileName;
 
         return Container(
           height: 24,

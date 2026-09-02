@@ -38,6 +38,7 @@ class DaqProvider extends ChangeNotifier {
   String get currentVehicleState => _currentVehicleState;
   
   List<Map<String, dynamic>> _loadedLogData = [];
+  String _loadedFileName = 'None';
   Timer? _playbackTimer;
 
   // Serial Port State
@@ -197,6 +198,7 @@ class DaqProvider extends ChangeNotifier {
   int get totalDurationMs => _totalDurationMs;
   Map<String, double?> get currentSensorValues => _currentSensorValues;
   List<Map<String, dynamic>> get loadedLogData => _loadedLogData;
+  String get loadedFileName => _loadedFileName;
   List<String> get availableChannels => _availableChannels;
   List<String> get selectedOverlayChannels => _selectedOverlayChannels;
   
@@ -457,6 +459,7 @@ Use engineering terminology appropriate for FSAE competition.
   void loadLogData(List<Map<String, dynamic>> data, int durationMs, {String filename = 'LOG_1.CSV', String? filepath}) {
     _hasShownSmartDetection = false;
     _loadedLogData = data;
+    _loadedFileName = filename;
     _totalDurationMs = durationMs;
     
     if (data.isNotEmpty) {

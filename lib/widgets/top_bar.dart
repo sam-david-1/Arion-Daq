@@ -229,8 +229,21 @@ class _TopBarState extends State<TopBar> {
           child: Row(
             children: [
               // Left: Branding
-              Text('ARION ', style: Theme.of(context).textTheme.displaySmall?.copyWith(color: RacingTheme.primaryAccent, fontSize: 16)),
-              Text('DAQ', style: Theme.of(context).textTheme.displaySmall?.copyWith(color: RacingTheme.textPrimary, fontSize: 16)),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(
+                    'assets/images/team_logo.png',
+                    width: 28,
+                    height: 28,
+                    fit: BoxFit.contain,
+                    errorBuilder: (c, e, s) => const SizedBox(width: 28, height: 28),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('ARION ', style: Theme.of(context).textTheme.displaySmall?.copyWith(color: RacingTheme.primaryAccent, fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text('DAQ', style: Theme.of(context).textTheme.displaySmall?.copyWith(color: Colors.white, fontSize: 16)),
+                ],
+              ),
               
               const SizedBox(width: 24),
               // Status Badge
@@ -392,12 +405,12 @@ class _TopBarState extends State<TopBar> {
                   if (provider.selectedPort != null) {
                     if (_serialService.isConnected) {
                       _serialService.disconnect();
-                        _telemetrySub?.cancel();
-                        _rawLogsSub?.cancel();
-                        setState(() {});
-                      } else {
-                        _serialService.connect(provider.selectedPort!).then((_) {
-                          _telemetrySub = _serialService.telemetryStream.listen((data) {
+                      _telemetrySub?.cancel();
+                      _rawLogsSub?.cancel();
+                      setState(() {});
+                    } else {
+                      _serialService.connect(provider.selectedPort!).then((_) {
+                        _telemetrySub = _serialService.telemetryStream.listen((data) {
                           provider.updateLiveSensorValues(data);
                         });
                         _rawLogsSub = _serialService.rawLogsStream.listen((line) {

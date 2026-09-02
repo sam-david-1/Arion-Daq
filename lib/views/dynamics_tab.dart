@@ -15,38 +15,34 @@ class DynamicsTab extends StatelessWidget {
   const DynamicsTab({super.key});
 
   /// Resolve which channel name to use for lateral / longitudinal G.
+  /// Prioritizes exact matches for known proper G channels first.
   static String? _findChannel(List<String> channels, List<String> keywords) {
-    for (var c in channels) {
-      var lower = c.toLowerCase();
-      for (var kw in keywords) {
-        if (lower.contains(kw)) return c;
+    // 1. Try exact matches first
+    for (var kw in keywords) {
+      for (var c in channels) {
+        if (c.toLowerCase() == kw) return c;
+      }
+    }
+    // 2. Try partial matches
+    for (var kw in keywords) {
+      for (var c in channels) {
+        if (c.toLowerCase().contains(kw)) return c;
       }
     }
     return null;
   }
 
-  /// Read a G value from a data row, applying raw-LSB scaling if needed.
-  static double _readG(Map<String, dynamic> row, String channel, bool isRaw) {
-    double v = (row[channel] as num?)?.toDouble() ?? 0;
-    if (isRaw) v /= 16384.0;
-    return v;
-  }
-
-  /// Detect whether data is raw LSB (values > 50 are clearly not in g).
-  static bool _detectRawLsb(List<Map<String, dynamic>> data, String channel) {
-    for (int i = 0; i < math.min(100, data.length); i++) {
-      double v = (data[i][channel] as num?)?.toDouble() ?? 0;
-      if (v.abs() > 50) return true;
-    }
-    return false;
+  /// Read a G value from a data row.
+  static double _readG(Map<String, dynamic> row, String channel) {
+    return (row[channel] as num?)?.toDouble() ?? 0;
   }
 
   /// Compute the auto-radius for the friction circle from actual data.
-  static double _computeMaxG(List<Map<String, dynamic>> data, String latCh, String longCh, bool isRaw) {
+  static double _computeMaxG(List<Map<String, dynamic>> data, String latCh, String longCh) {
     double maxG = 0;
     for (var row in data) {
-      double lat = _readG(row, latCh, isRaw);
-      double lng = _readG(row, longCh, isRaw);
+      double lat = _readG(row, latCh);
+      double lng = _readG(row, longCh);
       double g = math.sqrt(lat * lat + lng * lng);
       if (g > maxG) maxG = g;
     }
@@ -55,25 +51,25 @@ class DynamicsTab extends StatelessWidget {
 
   Widget _buildGgScatter(BuildContext context, DaqProvider provider, bool hasData) {
     final channels = provider.availableChannels;
-    final latChannel = _findChannel(channels, ['accel_y', 'lat', 'gyro_x', 'gyrox']);
-    final longChannel = _findChannel(channels, ['accel_x', 'long', 'gyro_y', 'gyroy']);
+    
+    // Explicitly target the correct DAQ channels first
+    final latChannel = _findChannel(channels, ['lataccel_g', 'lat_g', 'accel_y', 'lat', 'gyro_x']);
+    final longChannel = _findChannel(channels, ['longaccel_g', 'long_g', 'accel_x', 'long', 'gyro_y']);
     final speedChannel = _findChannel(channels, ['speed', 'spd', 'vel']);
 
     // Current G values
     double curLatG = 0;
     double curLongG = 0;
-    bool isRaw = false;
     double frictionRadius = 2.0;
 
     if (hasData && latChannel != null && longChannel != null) {
-      isRaw = _detectRawLsb(provider.loadedLogData, latChannel);
-      double dataMaxG = _computeMaxG(provider.loadedLogData, latChannel, longChannel, isRaw);
+      double dataMaxG = _computeMaxG(provider.loadedLogData, latChannel, longChannel);
       frictionRadius = math.max(2.0, dataMaxG * 1.1);
 
       int idx = (provider.currentTimestampMs / 10).floor().clamp(0, provider.loadedLogData.length - 1);
       var row = provider.loadedLogData[idx];
-      curLatG = _readG(row, latChannel, isRaw);
-      curLongG = _readG(row, longChannel, isRaw);
+      curLatG = _readG(row, latChannel);
+      curLongG = _readG(row, longChannel);
     }
 
     double totalG = math.sqrt(curLatG * curLatG + curLongG * curLongG);
@@ -611,16 +607,6 @@ class _GgScatterPainter extends CustomPainter {
     if (allData.isEmpty) return;
 
     final center = Offset(size.width / 2, size.height / 2);
-    
-    // Detect raw LSB
-    bool isRawLsb = false;
-    for (int i = 0; i < math.min(100, allData.length); i++) {
-      double lat = (allData[i][latChannel] as num?)?.toDouble() ?? 0;
-      if (lat.abs() > 50) {
-        isRawLsb = true;
-        break;
-      }
-    }
 
     // Display range = frictionRadius (already auto-calculated), add 10% margin
     double displayG = frictionRadius * 1.1;
@@ -653,10 +639,6 @@ class _GgScatterPainter extends CustomPainter {
     for (var row in allData) {
       double lat = (row[latChannel] as num?)?.toDouble() ?? 0;
       double lng = (row[longChannel] as num?)?.toDouble() ?? 0;
-      if (isRawLsb) {
-        lat /= 16384.0;
-        lng /= 16384.0;
-      }
       
       // State-based coloring
       paintDots.color = _stateColor(lat, lng);
@@ -673,10 +655,6 @@ class _GgScatterPainter extends CustomPainter {
     for (int i = trailStart; i <= currentIndex; i++) {
       double lat = (allData[i][latChannel] as num?)?.toDouble() ?? 0;
       double lng = (allData[i][longChannel] as num?)?.toDouble() ?? 0;
-      if (isRawLsb) {
-        lat /= 16384.0;
-        lng /= 16384.0;
-      }
       trail.add(Offset(center.dx + lat * scale, center.dy - lng * scale));
     }
     
@@ -701,14 +679,6 @@ class _GgScatterPainter extends CustomPainter {
     
     // Current point with glow
     if (trail.isNotEmpty) {
-      // Get current G values for state color
-      double curLat = (allData[currentIndex][latChannel] as num?)?.toDouble() ?? 0;
-      double curLng = (allData[currentIndex][longChannel] as num?)?.toDouble() ?? 0;
-      if (isRawLsb) {
-        curLat /= 16384.0;
-        curLng /= 16384.0;
-      }
-
       final paintGlow = Paint()
         ..color = Colors.white.withOpacity(0.5)
         ..style = PaintingStyle.fill

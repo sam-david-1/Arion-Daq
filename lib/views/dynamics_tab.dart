@@ -126,6 +126,7 @@ class DynamicsTab extends StatelessWidget {
                                       width: size,
                                       height: size,
                                       child: Stack(
+                                        clipBehavior: Clip.none,
                                         children: [
                                           RepaintBoundary(
                                             child: CustomPaint(
@@ -147,21 +148,21 @@ class DynamicsTab extends StatelessWidget {
                                           Positioned(left: 2, top: 0, bottom: 0, child: Center(child: RotatedBox(quarterTurns: 3, child: Text('Left (-G)', style: RacingTheme.chartTextStyle.copyWith(fontSize: 11, fontWeight: FontWeight.bold))))),
                                           // Position readout box
                                           Positioned(
-                                            top: 8,
-                                            left: 8,
+                                            top: -24,
+                                            left: -24,
                                             child: Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                               decoration: BoxDecoration(
                                                 color: const Color(0xFF111418),
                                                 border: Border.all(color: const Color(0xFF1E2530)),
-                                                borderRadius: BorderRadius.circular(4),
+                                                borderRadius: BorderRadius.circular(6),
                                               ),
                                               child: Column(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
-                                                  Text('LAT:  ${curLatG >= 0 ? "+" : ""}${curLatG.toStringAsFixed(2)} g', style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 11, color: Colors.white)),
-                                                  Text('LONG: ${curLongG >= 0 ? "+" : ""}${curLongG.toStringAsFixed(2)} g', style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 11, color: Colors.white)),
-                                                  Text('TOTAL: ${totalG.toStringAsFixed(2)} g', style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 11, color: Color(0xFF7DD3FC))),
+                                                  Text('LAT:  ${curLatG >= 0 ? "+" : ""}${curLatG.toStringAsFixed(2)} g', style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 14, color: Colors.white)),
+                                                  Text('LONG: ${curLongG >= 0 ? "+" : ""}${curLongG.toStringAsFixed(2)} g', style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 14, color: Colors.white)),
+                                                  Text('TOTAL: ${totalG.toStringAsFixed(2)} g', style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 14, color: Color(0xFF7DD3FC))),
                                                 ],
                                               ),
                                             ),

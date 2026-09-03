@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'dart:math' as math;
 import '../services/file_service.dart';
 import '../services/settings_service.dart';
@@ -96,6 +97,20 @@ class DaqProvider extends ChangeNotifier {
   // G-G Trail Buffer (last 100 points)
   final List<Offset> _ggTrail = [];
 
+  // ── Performance: Cached chart data ──
+  // Full-resolution FlSpot lists per channel (built once on data load)
+  Map<String, List<FlSpot>> _cachedSpots = {};
+  // Downsampled FlSpot lists (~2000 points) for chart rendering
+  Map<String, List<FlSpot>> _downsampledSpots = {};
+  Map<String, List<FlSpot>> get cachedSpots => _cachedSpots;
+  Map<String, List<FlSpot>> get downsampledSpots => _downsampledSpots;
+
+  // Cached G-G diagram metrics (computed once on data load)
+  double _cachedMaxG = 2.0;
+  double get cachedMaxG => _cachedMaxG;
+  double _cachedFrictionRadius = 2.0;
+  double get cachedFrictionRadius => _cachedFrictionRadius;
+
   // AI Chat and Context
   List<ChatMessage> _chatHistory = [];
   bool _isAiSidebarMode = SettingsService().isAiSidebarMode;
@@ -167,6 +182,8 @@ class DaqProvider extends ChangeNotifier {
       _calculateStats();
       _generateAlerts();
       _generateHistograms();
+      _buildCachedSpots();
+      _buildCachedGGMetrics();
     }
     notifyListeners();
   }
@@ -292,11 +309,25 @@ class DaqProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── Performance: Binary search for O(log N) index lookup ──
+  int _binarySearchIndex(int targetMs) {
+    int lo = 0, hi = _loadedLogData.length - 1;
+    while (lo < hi) {
+      int mid = (lo + hi) >> 1;
+      if ((_loadedLogData[mid]['Time_ms'] as num).toDouble() < targetMs) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    return lo;
+  }
+
   void _startTimer() {
     _playbackTimer?.cancel();
-    // 120Hz update rate (~8ms per tick)
-    _playbackTimer = Timer.periodic(const Duration(milliseconds: 8), (timer) {
-      _currentTimestampMs += (8 * _playbackSpeed).round();
+    // 30fps update rate (~33ms per tick) — smooth without waste
+    _playbackTimer = Timer.periodic(const Duration(milliseconds: 33), (timer) {
+      _currentTimestampMs += (33 * _playbackSpeed).round();
       if (_currentTimestampMs > _totalDurationMs) {
         _currentTimestampMs = _totalDurationMs;
         _isPlaying = false;
@@ -304,11 +335,8 @@ class DaqProvider extends ChangeNotifier {
       }
       
       if (_loadedLogData.isNotEmpty) {
-        final targetData = _loadedLogData.firstWhere(
-            (d) => (d['Time_ms'] as double) >= _currentTimestampMs, 
-            orElse: () => _loadedLogData.last
-        );
-        _updateLiveSensorValuesInternal(targetData);
+        final idx = _binarySearchIndex(_currentTimestampMs);
+        _updateLiveSensorValuesInternal(_loadedLogData[idx]);
       }
       
       _crosshairTime = _currentTimestampMs.toDouble();
@@ -327,11 +355,8 @@ class DaqProvider extends ChangeNotifier {
   void seekTo(int timestampMs) {
     _currentTimestampMs = timestampMs.clamp(0, _totalDurationMs);
     if (_loadedLogData.isNotEmpty) {
-        final targetData = _loadedLogData.firstWhere(
-            (d) => (d['Time_ms'] as double) >= _currentTimestampMs, 
-            orElse: () => _loadedLogData.last
-        );
-        _updateLiveSensorValuesInternal(targetData);
+        final idx = _binarySearchIndex(_currentTimestampMs);
+        _updateLiveSensorValuesInternal(_loadedLogData[idx]);
     }
     _crosshairTime = _currentTimestampMs.toDouble();
     notifyListeners();
@@ -494,6 +519,8 @@ Use engineering terminology appropriate for FSAE competition.
     _calculateStats();
     _generateAlerts();
     _generateHistograms();
+    _buildCachedSpots();   // ← Performance: build once
+    _buildCachedGGMetrics(); // ← Performance: compute max G once
     _chatHistory.clear(); // Clear chat on new CSV
     
     // Auto AI Analysis
@@ -512,6 +539,117 @@ Use engineering terminology appropriate for FSAE competition.
     
     seekTo(0);
     notifyListeners();
+  }
+
+  // ── Performance: Build FlSpot caches once on data load ──
+  void _buildCachedSpots() {
+    _cachedSpots.clear();
+    _downsampledSpots.clear();
+    if (_loadedLogData.isEmpty) return;
+
+    // Build full-resolution spots for each numeric channel
+    for (String channel in _availableChannels) {
+      List<FlSpot> spots = [];
+      for (var item in _loadedLogData) {
+        double t = (item['Time_ms'] as num).toDouble();
+        var val = item[channel];
+        if (val != null && val is num) {
+          spots.add(FlSpot(t, val.toDouble()));
+        }
+      }
+      _cachedSpots[channel] = spots;
+
+      // Downsample to ~2000 points for chart rendering
+      if (spots.length > 2000) {
+        _downsampledSpots[channel] = _downsample(spots, 2000);
+      } else {
+        _downsampledSpots[channel] = spots;
+      }
+    }
+  }
+
+  /// Largest-Triangle-Three-Buckets downsampling
+  static List<FlSpot> _downsample(List<FlSpot> data, int targetCount) {
+    if (data.length <= targetCount) return data;
+    
+    List<FlSpot> result = [data.first];
+    double bucketSize = (data.length - 2) / (targetCount - 2);
+    
+    int a = 0; // index of previously selected point
+    
+    for (int i = 1; i < targetCount - 1; i++) {
+      int bucketStart = ((i - 1) * bucketSize).floor() + 1;
+      int bucketEnd = (i * bucketSize).floor() + 1;
+      if (bucketEnd > data.length - 1) bucketEnd = data.length - 1;
+      
+      // Average of next bucket for target
+      int nextStart = bucketEnd;
+      int nextEnd = ((i + 1) * bucketSize).floor() + 1;
+      if (nextEnd > data.length - 1) nextEnd = data.length - 1;
+      
+      double avgX = 0, avgY = 0;
+      int count = nextEnd - nextStart;
+      if (count <= 0) count = 1;
+      for (int j = nextStart; j < nextEnd && j < data.length; j++) {
+        avgX += data[j].x;
+        avgY += data[j].y;
+      }
+      avgX /= count;
+      avgY /= count;
+      
+      // Find point in current bucket with max triangle area
+      double maxArea = -1;
+      int maxIdx = bucketStart;
+      for (int j = bucketStart; j < bucketEnd && j < data.length; j++) {
+        double area = ((data[a].x - avgX) * (data[j].y - data[a].y) -
+                       (data[a].x - data[j].x) * (avgY - data[a].y)).abs() * 0.5;
+        if (area > maxArea) {
+          maxArea = area;
+          maxIdx = j;
+        }
+      }
+      result.add(data[maxIdx]);
+      a = maxIdx;
+    }
+    result.add(data.last);
+    return result;
+  }
+
+  // ── Performance: Pre-compute G-G diagram metrics ──
+  void _buildCachedGGMetrics() {
+    _cachedMaxG = 0;
+    if (_loadedLogData.isEmpty) {
+      _cachedFrictionRadius = 2.0;
+      return;
+    }
+    // Find lat/long channels
+    String? latCh = _findGChannel(['lataccel_g', 'lat_g', 'lateral g', 'accel_y', 'lat']);
+    String? longCh = _findGChannel(['longaccel_g', 'long_g', 'longitudinal g', 'accel_x', 'long']);
+    if (latCh == null || longCh == null) {
+      _cachedFrictionRadius = 2.0;
+      return;
+    }
+    for (var row in _loadedLogData) {
+      double lat = (row[latCh] as num?)?.toDouble() ?? 0;
+      double lng = (row[longCh] as num?)?.toDouble() ?? 0;
+      double g = math.sqrt(lat * lat + lng * lng);
+      if (g > _cachedMaxG) _cachedMaxG = g;
+    }
+    _cachedFrictionRadius = math.max(2.0, _cachedMaxG * 1.1);
+  }
+
+  String? _findGChannel(List<String> keywords) {
+    for (var kw in keywords) {
+      for (var c in _availableChannels) {
+        if (c.toLowerCase() == kw) return c;
+      }
+    }
+    for (var kw in keywords) {
+      for (var c in _availableChannels) {
+        if (c.toLowerCase().contains(kw)) return c;
+      }
+    }
+    return null;
   }
 
 

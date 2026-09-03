@@ -49,6 +49,20 @@ class DynamicsTab extends StatelessWidget {
     return maxG;
   }
 
+  /// Binary search for the data index closest to a target timestamp.
+  static int _binarySearch(List<Map<String, dynamic>> data, int targetMs) {
+    int lo = 0, hi = data.length - 1;
+    while (lo < hi) {
+      int mid = (lo + hi) >> 1;
+      if ((data[mid]['Time_ms'] as num).toDouble() < targetMs) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    return lo;
+  }
+
   Widget _buildGgScatter(BuildContext context, DaqProvider provider, bool hasData) {
     final channels = provider.availableChannels;
     
@@ -60,13 +74,13 @@ class DynamicsTab extends StatelessWidget {
     // Current G values
     double curLatG = 0;
     double curLongG = 0;
-    double frictionRadius = 2.0;
+    // Use pre-cached friction radius from provider (computed once on data load)
+    double frictionRadius = provider.cachedFrictionRadius;
 
     if (hasData && latChannel != null && longChannel != null) {
-      double dataMaxG = _computeMaxG(provider.loadedLogData, latChannel, longChannel);
-      frictionRadius = math.max(2.0, dataMaxG * 1.1);
-
-      int idx = (provider.currentTimestampMs / 10).floor().clamp(0, provider.loadedLogData.length - 1);
+      int idx = provider.loadedLogData.length > 1
+          ? _binarySearch(provider.loadedLogData, provider.currentTimestampMs)
+          : 0;
       var row = provider.loadedLogData[idx];
       curLatG = _readG(row, latChannel);
       curLongG = _readG(row, longChannel);
@@ -505,18 +519,10 @@ class DynamicsTab extends StatelessWidget {
           
           for (String channel in imuChannels) {
             final def = ParameterRegistry().getParameter(channel);
-            List<FlSpot> spots = [];
-            double? minVal, maxVal;
-            
-            for (var item in provider.loadedLogData) {
-              double t = item['Time_ms'] as double;
-              if (item[channel] != null) {
-                double val = (item[channel] as num).toDouble();
-                spots.add(FlSpot(t, val));
-                if (maxVal == null || val > maxVal) maxVal = val;
-                if (minVal == null || val < minVal) minVal = val;
-              }
-            }
+            // Use cached downsampled spots
+            List<FlSpot> spots = provider.downsampledSpots[channel] ?? [];
+            double? minVal = provider.channelStats[channel]?['min'];
+            double? maxVal = provider.channelStats[channel]?['max'];
             
             if (spots.isNotEmpty) {
               imuCharts.add(_buildChart(
@@ -623,16 +629,8 @@ class _GgScatterPainter extends CustomPainter {
     // Friction circle — auto-calculated radius
     _drawDashedCircle(canvas, center, frictionRadius * scale, paintLimit);
 
-    // Find current index
-    int currentIndex = (currentTimestampMs / 10).floor().clamp(0, allData.length - 1);
-    if (allData[currentIndex]['Time_ms'] != null) {
-      while (currentIndex < allData.length - 1 && (allData[currentIndex]['Time_ms'] as num).toDouble() < currentTimestampMs) {
-        currentIndex++;
-      }
-      while (currentIndex > 0 && (allData[currentIndex]['Time_ms'] as num).toDouble() > currentTimestampMs) {
-        currentIndex--;
-      }
-    }
+    // Find current index using binary search
+    int currentIndex = _binarySearch(allData, currentTimestampMs);
 
     // Plot ALL data points with state-based coloring
     final paintDots = Paint()..style = PaintingStyle.fill;
@@ -752,8 +750,26 @@ class _GgScatterPainter extends CustomPainter {
     }
   }
 
+  /// Binary search for current index
+  int _binarySearch(List<Map<String, dynamic>> data, int targetMs) {
+    int lo = 0, hi = data.length - 1;
+    while (lo < hi) {
+      int mid = (lo + hi) >> 1;
+      if ((data[mid]['Time_ms'] as num).toDouble() < targetMs) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    return lo;
+  }
+
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant _GgScatterPainter oldDelegate) {
+    return oldDelegate.currentTimestampMs != currentTimestampMs ||
+           oldDelegate.frictionRadius != frictionRadius ||
+           !identical(oldDelegate.allData, allData);
+  }
 }
 
 class _PitchInstrument extends StatelessWidget {

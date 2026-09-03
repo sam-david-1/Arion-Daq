@@ -435,12 +435,8 @@ class _ChannelsTabState extends State<ChannelsTab> {
         if (hasData && selected.isNotEmpty) {
           for (int i = 0; i < selected.length; i++) {
             String ch = selected[i];
-            List<FlSpot> spots = [];
-            for (var item in provider.loadedLogData) {
-              if (item[ch] != null) {
-                spots.add(FlSpot(item['Time_ms'] as double, item[ch] as double));
-              }
-            }
+            // Use cached downsampled spots
+            List<FlSpot> spots = provider.downsampledSpots[ch] ?? [];
             if (spots.isNotEmpty) {
               barData.add(
                 LineChartBarData(

@@ -343,16 +343,8 @@ class _OverviewTabState extends State<OverviewTab> {
                         itemCount: _selectedChannels.length,
                         itemBuilder: (context, index) {
                               String channel = _selectedChannels[index];
-                              // Extract spots for this channel
-                              List<FlSpot> channelSpots = [];
-                              if (hasData) {
-                                for (var item in provider.loadedLogData) {
-                                  double t = item['Time_ms'] as double;
-                                  if (item[channel] != null) {
-                                    channelSpots.add(FlSpot(t, (item[channel] as num).toDouble()));
-                                  }
-                                }
-                              }
+                              // Use cached downsampled spots
+                              List<FlSpot> channelSpots = provider.downsampledSpots[channel] ?? [];
                               // Pick a color based on channel name hash or predefined
                               Color color = Colors.primaries[channel.hashCode % Colors.primaries.length];
                               if (channel == 'TPS_Deg') color = RacingTheme.primaryAccent;
@@ -480,15 +472,8 @@ class _OverviewTabState extends State<OverviewTab> {
   }
 
   Widget _buildMobileChart(BuildContext context, DaqProvider provider, String channel, bool hasData, double minX, double maxX) {
-    List<FlSpot> channelSpots = [];
-    if (hasData) {
-      for (var item in provider.loadedLogData) {
-        double t = item['Time_ms'] as double;
-        if (item[channel] != null) {
-          channelSpots.add(FlSpot(t, (item[channel] as num).toDouble()));
-        }
-      }
-    }
+    // Use cached downsampled spots
+    List<FlSpot> channelSpots = provider.downsampledSpots[channel] ?? [];
     Color color = Colors.primaries[channel.hashCode % Colors.primaries.length];
     if (channel == 'TPS_Deg') color = RacingTheme.primaryAccent;
     if (channel == 'Brake_Bar') color = RacingTheme.danger;
@@ -511,20 +496,12 @@ class _OverviewTabState extends State<OverviewTab> {
         String steerVal = provider.maxAngle?.toStringAsFixed(1) ?? 'N/A';
         String samplesVal = hasData ? provider.sampleCount.toString() : 'N/A';
 
-        List<FlSpot> tpsSpots = [];
-        List<FlSpot> brakeSpots = [];
-        List<FlSpot> angleSpots = [];
+        // Use cached downsampled spots instead of rebuilding every frame
+        List<FlSpot> tpsSpots = provider.downsampledSpots['TPS_Deg'] ?? [];
+        List<FlSpot> brakeSpots = provider.downsampledSpots['Brake_Bar'] ?? [];
+        List<FlSpot> angleSpots = provider.downsampledSpots['Angle'] ?? [];
         double minX = 0;
         double maxX = hasData ? provider.totalDurationMs.toDouble() : 1000;
-
-        if (hasData) {
-          for (var item in provider.loadedLogData) {
-            double t = item['Time_ms'] as double;
-            if (item['TPS_Deg'] != null) tpsSpots.add(FlSpot(t, item['TPS_Deg']));
-            if (item['Brake_Bar'] != null) brakeSpots.add(FlSpot(t, item['Brake_Bar']));
-            if (item['Angle'] != null) angleSpots.add(FlSpot(t, item['Angle']));
-          }
-        }
 
         // Latest alert
         String alertText = "";

@@ -242,19 +242,10 @@ class _BrakeSystemTabState extends State<BrakeSystemTab> {
 
           for (String channel in brakeChannels) {
             final def = ParameterRegistry().getParameter(channel);
-            List<FlSpot> spots = [];
-            double? maxVal;
-            double? minVal;
-
-            for (var item in provider.loadedLogData) {
-              double t = item['Time_ms'] as double;
-              if (item[channel] != null) {
-                double val = (item[channel] as num).toDouble();
-                spots.add(FlSpot(t, val));
-                if (maxVal == null || val > maxVal) maxVal = val;
-                if (minVal == null || val < minVal) minVal = val;
-              }
-            }
+            // Use cached downsampled spots
+            List<FlSpot> spots = provider.downsampledSpots[channel] ?? [];
+            double? maxVal = provider.channelStats[channel]?['max'];
+            double? minVal = provider.channelStats[channel]?['min'];
 
             if (spots.isNotEmpty) {
               double? threshold = (def.displayName.toLowerCase().contains('pressure') || def.unit == 'bar') ? SettingsService().brakeWarningThreshold : null;

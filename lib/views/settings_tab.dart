@@ -28,11 +28,25 @@ class _SettingsTabState extends State<SettingsTab> {
       _isTestingAi = true;
       _aiTestResult = 'Testing $model...';
     });
-    String res = await AiService.ask(model, "You are a helpful AI.", [], "Say 'hello'.");
+    // Test with the specific provider (no failover) so the user
+    // knows exactly which provider is healthy.
+    final settings = SettingsService();
+    String res;
+    if (model == 'gemini') {
+      res = settings.geminiApiKey.isEmpty
+          ? 'Error: Gemini API key is not set.'
+          : await AiService.askGemini(
+              settings.geminiApiKey, 'You are a helpful AI.', [], "Say 'hello'.");
+    } else {
+      res = settings.groqApiKey.isEmpty
+          ? 'Error: Groq API key is not set.'
+          : await AiService.askGroq(
+              settings.groqApiKey, 'You are a helpful AI.', [], "Say 'hello'.");
+    }
     setState(() {
       _isTestingAi = false;
-      if (!res.startsWith("Error")) {
-        _aiTestResult = 'Connected';
+      if (!res.startsWith('Error')) {
+        _aiTestResult = 'Connected ✓  (failover is active if both keys are set)';
       } else {
         _aiTestResult = 'Failed: $res';
       }
@@ -202,8 +216,8 @@ class _SettingsTabState extends State<SettingsTab> {
                             dropdownColor: RacingTheme.panel,
                             style: TextStyle(color: Colors.white, fontSize: 13),
                             items: const [
-                              DropdownMenuItem(value: 'gemini', child: Text('Gemini 2.5 Flash')),
-                              DropdownMenuItem(value: 'groq', child: Text('Groq llama-3.1')),
+                              DropdownMenuItem(value: 'gemini', child: Text('Gemini (Direct)')),
+                              DropdownMenuItem(value: 'groq', child: Text('Groq (Llama)')),
                             ],
                             onChanged: (val) {
                               if (val != null) {
@@ -216,8 +230,10 @@ class _SettingsTabState extends State<SettingsTab> {
                       const SizedBox(height: 12),
                       
                       // API Keys
-                      _buildTextInput('Gemini API Key', s.geminiApiKey, (v) => s.setGeminiApiKey(v), isPassword: true),
-                      _buildTextInput('Groq API Key', s.groqApiKey, (v) => s.setGroqApiKey(v), isPassword: true),
+                      _buildTextInput('Gemini API Key (Google or OpenRouter)', s.geminiApiKey, (v) => s.setGeminiApiKey(v), isPassword: true),
+                      _buildTextInput('Groq API Key (console.groq.com)', s.groqApiKey, (v) => s.setGroqApiKey(v), isPassword: true),
+                      const SizedBox(height: 4),
+                      Text('Set both keys for automatic failover. Key type is auto-detected.', style: TextStyle(color: RacingTheme.textSecondary, fontSize: 10, fontStyle: FontStyle.italic)),
                       const SizedBox(height: 8),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
@@ -232,7 +248,7 @@ class _SettingsTabState extends State<SettingsTab> {
                       if (_aiTestResult.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(_aiTestResult, style: TextStyle(color: _aiTestResult == 'Connected' ? RacingTheme.success : RacingTheme.danger, fontSize: 12, fontWeight: FontWeight.bold)),
+                          child: Text(_aiTestResult, style: TextStyle(color: _aiTestResult.startsWith('Connected') ? RacingTheme.success : RacingTheme.danger, fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
                     ],
                   ),
